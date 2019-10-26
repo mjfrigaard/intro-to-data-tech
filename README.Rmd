@@ -1,0 +1,76 @@
+---
+title: "Data Technologies"
+output: github_document
+---
+
+```{r setup, include=FALSE, warning=FALSE, message=FALSE}
+library(knitr)
+library(rmdformats)
+library(tidyverse)
+library(devtools)
+# figs folder
+if (!file.exists("figs")) {
+  dir.create("figs")
+}
+# data folder
+if (!fs::file_exists("data")) {
+  fs::dir_create("data")
+}
+# JSON data
+if (!fs::file_exists("docs")) {
+  fs::dir_create("docs")
+}
+# chunk options
+knitr::opts_chunk$set(
+  echo = TRUE, # show/hide all code
+  error = TRUE, # hide results
+  tidy = FALSE, # cleaner code printing
+  comment = "#> ", # better console printing
+  eval = TRUE, # turn this to FALSE stop code chunks from running
+  message = TRUE, # show messages
+  warning = FALSE, # show warnings
+  size = "small", # size of the text
+  fig.path = "figs/", # location of files
+  fig.height = 5.5, # height of figures
+  fig.width = 8 # width of figures
+) 
+# knit options
+knitr::opts_knit$set(
+  width = 78,
+  progress = FALSE
+)
+# base options
+base::options(
+  tibble.print_max = 25,
+  tibble.width = 78,
+  max.print = "1000",
+  scipen = 100000000
+)
+options(max.print = 999999)
+```
+
+## 1) Introduction
+
+## 2) Operating systems 
+
+## 3) Command lines
+
+## 4) Computer code 
+
+## 5) Version control 
+
+## 6) File types 
+
+## 7) Data file types 
+
+## 8) Spreadsheets 
+
+## 9) Relational tables 
+
+## 10) Non-rectangular data 
+
+## 11) JSON, XML, and NoSQL
+
+## 12) HTML and CSS
+
+
