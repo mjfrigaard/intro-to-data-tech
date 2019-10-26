@@ -1,0 +1,389 @@
+---
+title: "JSON (JavaScript Object Notation) wrangling (intro + case study)"
+output: github_document
+---
+
+```{r setup, include=FALSE, warning=FALSE, message=FALSE}
+library(knitr)
+library(rmdformats)
+library(tidyverse)
+library(devtools)
+# figs folder
+if (!file.exists("figs")) {
+  dir.create("figs")
+}
+# data folder
+if (!fs::file_exists("data")) {
+  fs::dir_create("data")
+}
+# JSON data
+if (!fs::file_exists("data/json")) {
+  fs::dir_create("data/json")
+}
+# chunk options
+knitr::opts_chunk$set(
+  echo = TRUE, # show/hide all code
+  error = TRUE, # hide results
+  tidy = FALSE, # cleaner code printing
+  comment = "#> ", # better console printing
+  eval = TRUE, # turn this to FALSE stop code chunks from running
+  message = TRUE, # show messages
+  warning = FALSE, # show warnings
+  size = "small", # size of the text
+  fig.path = "figs/", # location of files
+  fig.height = 5.5, # height of figures
+  fig.width = 8 # width of figures
+) 
+# knit options
+knitr::opts_knit$set(
+  width = 78,
+  progress = FALSE
+)
+# base options
+base::options(
+  tibble.print_max = 25,
+  tibble.width = 78,
+  max.print = "1000",
+  scipen = 100000000
+)
+options(max.print = 999999)
+```
+
+Load the packages
+
+```{r json-packages, message=FALSE, warning=FALSE}
+library(RJSONIO)
+library(rjson)
+library(jsonlite)
+```
+
+
+# Motivation 
+
+This file imports and cleans various JSON data files from the DataUSA API. 
+
+## Why use JSON?
+
+JSON is an object notation language (hence JavaScript Object Notation). The advantage of using an object representation of data (in contrast to a relational table-based model) is that the set of attributes for each object is encapsulated within the object, which results in a flexible representation. 
+
+For example, it may be that one of the objects in the database, compared to other objects, has only a subset of attributes. 
+
+By contrast, in the standard tabular data structure used by a relational database, all the data points should have the same set of attributes (i.e., columns and rows). 
+
+This flexibility in object representation is important in contexts where the data cannot (due to variety or type) naturally be decomposed into a set of structured attributes. 
+
+For example, it can be difficult to define the set of attributes that should be used to represent free text (such as tweets) or images. However, although this representational flexibility allows us to capture and store data in a variety of formats, these data still have to be extracted into a structured format before any analysis can be performed on them.
+
+There are four JSON data types: 
+
+`null`
+
+`true`
+
+`false`
+
+`number`
+
+`string`
+
+Data containers are either 1) square brackets `[ ]` or 2) curly brackets `{ }`
+
+## Named vs. Unnamed Arrays
+
+**Ordered unnamed arrays** are indicated with the square brackets `[ ]`
+
+-  `[ 1, 2, 3, ... ]`  
+
+-  `[ true, true, false, ... ]`
+
+
+**Named arrays** are built using the curly brackets `{ }` 
+
+- `{ "dollars" : 5, "euros" : 20, ... }`  
+
+- `{ "city" : "Berkeley", "state" : "CA", ... }`
+
+### Nesting JSON data
+
+This is a nested named array.
+
+```json
+{
+  "name": ["X", "Y", "Z"],
+  "grams": [300, 200, 500],
+  "qty": [4, 5, null],
+  "new": [true, false, true],
+}
+```
+
+This is a nested unnamed ordered array
+
+```json
+[
+    { "name": "X",
+      "grams": 300,
+      "qty": 4,
+      "new": true },
+    { "name": "Y",
+      "grams": 200,
+      "qty": 5,
+      "new": false },
+    { "name": "Z",
+      "grams": 500,
+      "qty": null,
+      "new": true}
+]
+```
+
+## Viewing JSON data in R
+
+We can import the `mario-wide.json` file below using `readr::read_file()`. To view this object, use the `cat` function. The square brackets show this is an 
+
+```{r mario_wide}
+# fs::dir_ls("data/json")
+mario_wide <- readr::read_file(file = "data/json/mario-wide.json")
+cat(mario_wide)
+```
+
+Here we see the third item is left blank, and the `Age` for `Bowser` is left blank.
+
+```{r MarioWideData}
+MarioWideData <- jsonlite::fromJSON(mario_wide)
+MarioWideData
+```
+
+
+
+```{r fromJSON}
+mario_long <- readr::read_file(file = "data/json/mario-long.json")
+cat(mario_long)
+```
+
+```{r MarioLongData}
+MarioLongData <- jsonlite::fromJSON(mario_long)
+MarioLongData
+```
+
+## Data USA (datausa.io housing data)
+
+- Source: [Dallas Texas Housing](https://datausa.io/profile/geo/dallas-tx/#housing)
+
+- Data USA API documentation: [Data USA API Documentation](https://github.com/DataUSA/datausa-api/wiki/Data-API#ipeds)
+
+### Components of API requests
+
+The various components of the API request (text string dropped in the url to download JSON data).
+
+`https://api.datausa.io/api/` = root url
+
+`?show=geo&` = beginning of API request, the `?show=geo` is indicating the [location id](https://github.com/DataUSA/datausa-api/wiki/Attribute-API#geo), which is the following table of information 
+
+```{r DataUSALocationsGeo}
+source("docs/datausa-api-query-params/DataUSALocationsGeo.R")
+knitr::kable(DataUSALocationsGeo)
+```
+
+
+
+`sumlevel=state&` = below are the possible options for `sumlevel`. We're obviously collecting data on the `state`. 
+
+```{r AvailableSumlevels}
+source("docs/datausa-api-query-params/AvailableSumlevels.R")
+knitr::kable(AvailableSumlevels)
+```
+
+
+`force=pums_1yr.ygo&` = The `force` parameter requires the following two components, `schema_name.table_name`. This, "*Forces the use of a particular data table.*" Read more about this in the [query parameters](https://github.com/DataUSA/datausa-api/wiki/Data-API#query-parameters). I've also copied the table below. 
+
+```{r DataUSAQueryParams}
+source("docs/datausa-api-query-params/DataUSAQueryParams.R")
+knitr::kable(
+DataUSAQueryParams)
+``` 
+
+So we know this will becoming from the `pums_1yr` schema (`ACS PUMS 1-year Estimate`)
+
+```python
+class BasePums(db.Model, BaseModel):
+    __abstract__ = True
+    __table_args__ = {"schema": "pums_1yr"}
+    source_title = 'ACS PUMS 1-year Estimate'
+```
+
+but we don't know what the `ygo` is coming from. We can assume it is a table in the `pums_1yr` shema based on the documentation and [this script file](https://github.com/DataUSA/datausa-api/blob/ab50ea1a0301188532419a4529c32ec9101649a0/scripts/gen_indicies.py), 
+
+```python
+'''
+Script used to add indexes for PUMS tables
+'''
+import itertools
+
+lookup = {
+    "a": "age",
+    "b": "birthplace",
+    "c": "cip",
+    "d": "degree",
+    "s": "sector",
+    "g": "geo",
+    "i": "naics",
+    "o": "soc",
+    "r": "race",
+    "s": "sex",
+    "w": "wage_bin",
+    "y": "year",
+}
+
+tables = [ # these are the tables...
+    'ya',
+    'yc',
+    'yca',
+    'ycb',
+    'ycd',
+    'ycs',
+    'yg',
+    'ygb',
+    'ygc',
+    'ygd',
+    'ygi',
+    'ygio',
+    'ygo', # here is the table 
+    'ygor',
+    'ygos',
+    'ygr',
+    'ygs',
+    'ygw',
+    'yi',
+    'yic',
+    'yid',
+    'yio',
+    'yior',
+    'yios',
+    'yir',
+    'yis',
+    'yiw',
+    'yo',
+    'yoas',
+    'yoc',
+    'yocd',
+    'yod',
+    'yor',
+    'yos',
+    'yow',
+]
+schema = 'pums_1yr' # and this is the schema
+
+# <---> The rest of this file is omitted <--->
+```
+
+`limit=5`
+
+## Download all location attributes
+
+This API request will get all the location attributes. 
+
+```{r datausa_locations}
+utils::download.file(url = "http://api.datausa.io/attrs/geo/", 
+              destfile = "data/json/geo_attrs.json")
+```
+
+
+### Import the JSON data
+
+Now we can import these data using `readr::read_file()`
+
+```{r geo_attrs_json}
+geo_attrs_json <- readr::read_file("data/json/geo_attrs.json")
+```
+
+```{bash}
+# cd data/json
+# ls
+# head geo_attrs.json
+```
+
+This file is in the original format (JSON), but it's not the way we want it imported. We can use the `jsonlite::fromJSON()` function.
+
+### Convert JSON to list
+
+We can change the imported file (JSON data) to a `list` using  `jsonlite::fromJSON()`.
+
+```{r str-datausa-locations}
+datausa_locations <- jsonlite::fromJSON(geo_attrs_json)
+utils::str(datausa_locations)
+```
+
+There are two items in this list (`data` and `header`), so we'll extract the `$data` portion using `base::as.data.frame()`.
+
+### Convert list to data.frame
+
+This will take the `data` element with two dimensions (`1:36288` and `1:10` ) and create a `data.frame` with `36,288` observations and `10` variables.
+
+```{r DataUsaLocData}
+DataUsaLocData <- base::as.data.frame(datausa_locations$data)
+# assign the names to the data frame
+colnames(DataUsaLocData) <- datausa_locations$headers
+DataUsaLocData %>% dplyr::glimpse(78)
+```
+
+We assign the column names using the `headers` object. 
+
+## Download the ACS (Metropolitan Statistical Area)
+
+The `sort=desc` is pretty self explanatory (sort the data descending), but the `force` parameter needs a bit more explanation. We know from this table that it is the ACS survey and it will contain these columns and headers. 
+
+```{r DataUSA_acs.yg.R}
+# fs::dir_tree("docs/datausa-api-query-params")
+source("docs/datausa-api-query-params/DataUSA_acs.yg.R")
+knitr::kable(
+DataUSA_acs.yg)
+```
+
+So now that I have an idea what these data will have, I can run the code below to download the ACS `latest` data.
+
+```{r datausa-acs-yg}
+utils::download.file(url = "https://api.datausa.io/api/?sort=desc&force=acs.yg&show=geo&sumlevel=msa&year=latest", 
+              destfile = "data/json/datausa-acs-yg.json")
+```
+
+I can import these into the `asc_yg` list
+
+```{r USMetroRankRaw}
+asc_yg <- jsonlite::fromJSON("data/json/datausa-acs-yg.json")
+str(asc_yg)
+```
+
+We can see this is a list of `5` elements. I will convert this to a data.frame and assing the column names like I did above. 
+
+```{r AcsYgData}
+AcsYgData <- base::as.data.frame(asc_yg$data)
+colnames(AcsYgData) <- asc_yg$headers
+AcsYgData %>% dplyr::glimpse(78)
+```
+
+Now, I only wanted a few columns from the data set, so I can change the name of `geo` to `id`, and convert the `pop` and `pop_rank` to integers.
+
+```{r create-id-pop-pop_rank}
+AcsYgData <- AcsYgData %>%
+  dplyr::mutate(
+    id = geo, 
+    pop = as.integer(pop),
+    pop_rank = as.integer(pop_rank))
+AcsYgData %>% dplyr::glimpse(78)
+```
+
+```{r AcsLocationData}
+AcsLocationData <- AcsYgData %>%
+  # arrange this by the population rank
+  dplyr::arrange(pop_rank) %>%
+  # join to the location data
+  dplyr::left_join(x = .,
+                   y = DataUsaLocData, 
+                   by = "id") %>% 
+    # convert this to character
+    dplyr::mutate(
+        image_link = as.character(image_link)
+    )
+AcsLocationData %>% dplyr::glimpse(78)
+```
+
+
